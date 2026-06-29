@@ -1,0 +1,38 @@
+server:
+  BindAddress: 0.0.0.0:4180
+upstreamConfig:
+  upstreams:
+    - id: ui
+      path: /
+      uri: http://host.docker.internal:3000
+injectRequestHeaders:
+  - name: Authorization
+    values:
+      - claim: access_token
+        prefix: 'Bearer '
+  - name: Application-URL
+    values:
+      - fromEnv: EXTERNAL_URL
+  - name: Application-Client
+    values:
+      - fromEnv: CLIENT_ID
+providers:
+  - id: my-app-idp
+    provider: keycloak-oidc
+    loginURL: http://host.docker.internal:18080/realms/my-app/protocol/openid-connect/auth
+    redeemURL: http://host.docker.internal:18080/realms/my-app/protocol/openid-connect/token
+    validateURL: http://host.docker.internal:18080/realms/my-app/protocol/openid-connect/userinfo
+    profileURL: http://host.docker.internal:18080/realms/my-app/protocol/openid-connect/userinfo
+    clientID: my-app
+    clientSecret: kS6WaKsx9juXrQUcwbXv1QcKcSg2fsLt
+    code_challenge_method: S256
+    oidcConfig:
+      issuerURL: http://host.docker.internal:18080/realms/my-app
+      insecureAllowUnverifiedEmail: true
+      insecureSkipNonce: true
+      jwksURL: http://host.docker.internal:18080/realms/my-app/protocol/openid-connect/certs
+      emailClaim: "email"
+      groupsClaim: "groups"
+      userIDClaim: "email"
+      audienceClaims:
+        - aud

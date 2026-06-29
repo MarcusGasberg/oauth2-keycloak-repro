@@ -1,0 +1,67 @@
+services:
+
+  oauth2-proxy:
+    container_name: example-oauth2-proxy
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.8.1
+    restart: unless-stopped
+    command: --config /oauth2-proxy.cfg --alpha-config /oauth2-proxy-alpha-cfg.yaml --redirect-url=http://host.docker.internal:14180/oauth2/callback --reverse-proxy=true
+    hostname: oauth2-proxy
+    volumes:
+      - "./oauth2-proxy.cfg:/oauth2-proxy.cfg"
+      - "./oauth2-proxy-alpha-cfg.yaml:/oauth2-proxy-alpha-cfg.yaml"
+    environment:
+      EXTERNAL_URL: http://host.docker.internal:14180
+      CLIENT_ID: my-app
+    networks:
+      service-network: {}
+    depends_on:
+      - keycloak
+
+  keycloak:
+    container_name: example-keycloak
+    image: quay.io/keycloak/keycloak:26.0.5
+    restart: unless-stopped
+    ports:
+      - 18080:8080
+    command:
+      - start-dev
+      - --import-realm
+      - --verbose
+    volumes:
+      - ./my-app-realm.json:/opt/keycloak/data/import/my-app-realm.json
+      - ./master-realm.json:/opt/keycloak/data/import/master-realm.json
+    networks:
+      - service-network
+
+  my-app-web-app:
+    container_name: my-app-web-app
+    build:
+      context: ../
+      dockerfile: ./docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    networks:
+      - service-network
+
+  nginx:
+    container_name: example-nginx
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - 14180:80
+    volumes:
+      - "./nginx.conf:/etc/nginx/conf.d/default.conf"
+    networks:
+      - service-network
+    depends_on:
+      - oauth2-proxy
+
+networks:
+  service-network:
+    name: service-network
+    ipam:
+        driver: default
+        config:
+            - subnet: "192.169.0.0/24"
+              gateway: "192.169.0.1"
