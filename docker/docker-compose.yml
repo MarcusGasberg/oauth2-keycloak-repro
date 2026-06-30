@@ -14,8 +14,11 @@ services:
       CLIENT_ID: my-app
     networks:
       service-network: {}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      - keycloak
+      keycloak:
+        condition: service_healthy
 
   keycloak:
     container_name: example-keycloak
@@ -32,6 +35,21 @@ services:
       - ./master-realm.json:/opt/keycloak/data/import/master-realm.json
     networks:
       - service-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      # Keycloak's health endpoints aren't enabled in start-dev, so probe the
+      # realm's OIDC discovery doc — that's exactly what oauth2-proxy needs ready.
+      # The Host header must match the issuer host (host.docker.internal:18080),
+      # or Keycloak returns 500 on the discovery endpoint. No curl in the image,
+      # so use bash's /dev/tcp (sh is symlinked to bash here).
+      test:
+        - CMD-SHELL
+        - "exec 3<>/dev/tcp/localhost/8080 && printf 'GET /realms/my-app/.well-known/openid-configuration HTTP/1.0\\r\\nHost: host.docker.internal:18080\\r\\n\\r\\n' >&3 && cat <&3 | grep -q issuer"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
 
   my-app-web-app:
     container_name: my-app-web-app
@@ -43,6 +61,8 @@ services:
       - 3000:3000
     networks:
       - service-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   nginx:
     container_name: example-nginx
