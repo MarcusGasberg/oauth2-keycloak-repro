@@ -3,6 +3,6 @@ FROM oven/bun:latest
 WORKDIR /app
 COPY . .
 RUN bun install
-RUN bun run build
+RUN bun run vite build
 EXPOSE 3000
-CMD ["bun", "run", ".output/server/index.mjs"]
+CMD ["bun", "run", "dist/server/server.js"]
